@@ -31,6 +31,7 @@ class ChannelHandler(tornado.web.RequestHandler):
             CHANNEL_HANDLERS[self.channel_id] = self
 
     def send_message(self, message):
+        self.set_header("Access-Control-Allow-Origin", "*")
         self.write(message)
         self.finish()
 
@@ -52,7 +53,7 @@ class ChannelHandler(tornado.web.RequestHandler):
 
 
 application = tornado.web.Application([
-    tornado.web.url(r'/channel/([A-Za-z0-9]+)', ChannelHandler, name="channel_id"),
+    tornado.web.url(r'/channel/([A-Za-z0-9\-]+)', ChannelHandler, name="channel_id"),
 ])
 
 if __name__ == "__main__":
