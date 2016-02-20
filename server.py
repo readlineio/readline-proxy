@@ -1,7 +1,12 @@
+# TODO: this is all probably better handled with an express + websocket
+# server for the long polling
+
 import sys
+import json
+import time
 import tornado.ioloop
 import tornado.web
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 CHANNEL_MESSAGES = defaultdict(list)
 CHANNEL_HANDLERS = {}
@@ -52,8 +57,66 @@ class ChannelHandler(tornado.web.RequestHandler):
         self.finish()
 
 
+PROGRAM_REGISTRAR = {} # channel_id -> program information
+PROGRAM_UPDATE_HANDLERS = [] # callables on updates to registrar
+PROGRAM_TIMEOUT = 120
+
+def add_program(channel, program):
+    print("Update received from program:", program)
+    PROGRAM_REGISTRAR[channel] = program
+    while PROGRAM_UPDATE_HANDLERS:
+        handler = PROGRAM_UPDATE_HANDLERS.pop()
+        handler.send_update()
+
+def clean_program_list():
+    global PROGRAM_REGISTRAR
+    to_delete = []
+    for channel, program in PROGRAM_REGISTRAR.items():
+        if program.last_update_time < (time.time() - PROGRAM_TIMEOUT):
+            to_delete.append(channel)
+    for channel in to_delete:
+        del PROGRAM_REGISTRAR[channel]
+
+Program = namedtuple('Program', ['title', 'channel', 'last_update_time'])
+
+class ProgramRegisterHandler(tornado.web.RequestHandler):
+
+    def post(self):
+        message = self.request.body
+        message = json.loads(message.decode('utf-8'))
+        program = Program(
+            title=message.get('title', 'Untitled Program'),
+            channel=message.get('page_id'),
+            last_update_time=time.time()
+            )
+        add_program(message['page_id'], program)
+
+
+class ProgramListHandler(tornado.web.RequestHandler):
+
+    def get(self):
+        self.set_header("Access-Control-Allow-Origin", "*")
+        self.write(json.dumps(PROGRAM_REGISTRAR))
+        self.finish()
+
+
+class ProgramUpdateHandler(tornado.web.RequestHandler):
+
+    @tornado.web.asynchronous
+    def get(self):
+        PROGRAM_UPDATE_HANDLERS.append(self)
+
+    def send_update(self):
+        self.set_header("Access-Control-Allow-Origin", "*")
+        self.write(json.dumps(PROGRAM_REGISTRAR))
+        self.finish()
+
+
 application = tornado.web.Application([
     tornado.web.url(r'/channel/([A-Za-z0-9\-]+)', ChannelHandler, name="channel_id"),
+    tornado.web.url(r'/program/register', ProgramRegisterHandler),
+    tornado.web.url(r'/program/list', ProgramListHandler),
+    tornado.web.url(r'/program/updates', ProgramUpdateHandler)
 ])
 
 if __name__ == "__main__":
