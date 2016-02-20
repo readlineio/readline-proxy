@@ -63,6 +63,7 @@ PROGRAM_TIMEOUT = 120
 
 def add_program(channel, program):
     print("Update received from program:", program)
+    clean_program_list()
     PROGRAM_REGISTRAR[channel] = program
     while PROGRAM_UPDATE_HANDLERS:
         handler = PROGRAM_UPDATE_HANDLERS.pop()
@@ -95,6 +96,7 @@ class ProgramRegisterHandler(tornado.web.RequestHandler):
 class ProgramListHandler(tornado.web.RequestHandler):
 
     def get(self):
+        clean_program_list()
         self.set_header("Access-Control-Allow-Origin", "*")
         self.write(json.dumps(PROGRAM_REGISTRAR))
         self.finish()
