@@ -80,6 +80,12 @@ def clean_program_list():
 
 Program = namedtuple('Program', ['title', 'channel', 'last_update_time'])
 
+def get_program_data():
+    program_data = list(PROGRAM_REGISTRAR.values())
+    program_data.sort(key=lambda o: o.last_update_time, reverse=True)
+    program_data = [o._asdict() for o in program_data]
+    return program_data
+
 class ProgramRegisterHandler(tornado.web.RequestHandler):
 
     def post(self):
@@ -98,7 +104,7 @@ class ProgramListHandler(tornado.web.RequestHandler):
     def get(self):
         clean_program_list()
         self.set_header("Access-Control-Allow-Origin", "*")
-        self.write(json.dumps(PROGRAM_REGISTRAR))
+        self.write(json.dumps(get_program_data()))
         self.finish()
 
 
@@ -110,7 +116,7 @@ class ProgramUpdateHandler(tornado.web.RequestHandler):
 
     def send_update(self):
         self.set_header("Access-Control-Allow-Origin", "*")
-        self.write(json.dumps(PROGRAM_REGISTRAR))
+        self.write(json.dumps(get_program_data()))
         self.finish()
 
 
